@@ -48,6 +48,22 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// 5️⃣ Cấu hình CORS cho frontend
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:5173",  // Vite dev server
+                "http://localhost:3000",  // React dev server (backup)
+                "http://localhost:8080"   // Vite config port
+            )
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
+    });
+});
+
 // ======================
 // XÂY DỰNG ỨNG DỤNG
 // ======================
@@ -63,6 +79,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// 🌐 Enable CORS
+app.UseCors("AllowFrontend");
 
 // ⚙️ Tắt gzip / chunked compression (nếu có cấu hình)
 app.Use((context, next) =>

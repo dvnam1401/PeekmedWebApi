@@ -25,13 +25,13 @@ public partial class Appointment
 
     public DateTime? UpdatedAt { get; set; }
 
-    public virtual Department Department { get; set; } = null!;
+    public virtual Department? Department { get; set; }
 
-    public virtual Doctor Doctor { get; set; } = null!;
+    public virtual Doctor? Doctor { get; set; }
 
-    public virtual Hospital Hospital { get; set; } = null!;
+    public virtual Hospital? Hospital { get; set; }
 
     public virtual Queue? Queue { get; set; }
 
-    public virtual User User { get; set; } = null!;
+    public virtual User? User { get; set; }
 }
