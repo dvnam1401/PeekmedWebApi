@@ -39,14 +39,20 @@ builder.Services.AddControllers()
                .AddRouteComponents("odata", odataBuilder.GetEdmModel()))
     .AddJsonOptions(options =>
     {
-        // Fix tiếng Việt và ký tự đặc biệt
+        // ✅ Cải thiện JSON serialization cho Azure
         options.JsonSerializerOptions.Encoder = JavaScriptEncoder.Create(UnicodeRanges.All);
         options.JsonSerializerOptions.WriteIndented = true;
+        options.JsonSerializerOptions.PropertyNamingPolicy = null; // Giữ nguyên tên property
+        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
     });
 
 // 4️⃣ Swagger để test API
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// ✅ Thêm logging
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
 
 // 5️⃣ Cấu hình CORS cho frontend
 builder.Services.AddCors(options =>
@@ -54,9 +60,18 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy.WithOrigins(
+                // ✅ Local development
                 "http://localhost:5173",  // Vite dev server
                 "http://localhost:3000",  // React dev server (backup)
-                "http://localhost:8080"   // Vite config port
+                "http://localhost:8080",  // Vite config port
+                "https://localhost:7081", // Local HTTPS
+                
+                // ✅ Production domains
+                "https://www.peekmed.click",  // Production frontend
+                "https://peekmed.click",      // Production frontend (without www)
+                
+                // ✅ Azure deployment URLs (nếu có)
+                "https://peekmedwebapi-cvhnhxa9bpcke0b8.southeastasia-01.azurewebsites.net"
             )
             .AllowAnyMethod()
             .AllowAnyHeader()
@@ -77,17 +92,41 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    // ✅ Cấu hình đặc biệt cho Azure Production
+    app.UseSwagger();
+    app.UseSwaggerUI();
+    
+    // Tắt compression có thể gây vấn đề
+    app.Use(async (context, next) =>
+    {
+        context.Response.Headers.Remove("Accept-Encoding");
+        context.Response.Headers["Cache-Control"] = "no-cache, no-store";
+        await next();
+    });
+}
 
 app.UseHttpsRedirection();
 
 // 🌐 Enable CORS
 app.UseCors("AllowFrontend");
 
-// ⚙️ Tắt gzip / chunked compression (nếu có cấu hình)
-app.Use((context, next) =>
+// ✅ Middleware để handle errors
+app.Use(async (context, next) =>
 {
-    context.Response.Headers["Accept-Encoding"] = "identity";
-    return next();
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Unhandled exception occurred");
+        
+        context.Response.StatusCode = 500;
+        await context.Response.WriteAsync("Internal server error");
+    }
 });
 
 app.UseAuthorization();

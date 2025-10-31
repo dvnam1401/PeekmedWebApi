@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.OData.Query;
 using Microsoft.AspNetCore.OData.Routing.Controllers;
 using PeekmedWebApi.Data;
-// Thêm các using sau
 using PeekmedWebApi.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.OData.Deltas;
@@ -12,14 +11,48 @@ namespace PeekmedWebApi.Controllers;
 public class UsersController : ODataController
 {
     private readonly PeekMedDbContext _db;
-    public UsersController(PeekMedDbContext db) => _db = db;
+    private readonly ILogger<UsersController> _logger;
 
-    // READ (Đã có)
+    public UsersController(PeekMedDbContext db, ILogger<UsersController> logger)
+    {
+        _db = db;
+        _logger = logger;
+    }
+
+    // ✅ Cải thiện GET với error handling và async
     [EnableQuery]
-    public IActionResult Get() => Ok(_db.Users);
+    public async Task<IActionResult> Get()
+    {
+        try
+        {
+            _logger.LogInformation("Getting all users...");
+            var users = await _db.Users.AsNoTracking().ToListAsync();
+            _logger.LogInformation($"Found {users.Count} users");
+            return Ok(users);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting users");
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+        }
+    }
 
     [EnableQuery]
-    public IActionResult Get(int key) => Ok(_db.Users.FirstOrDefault(u => u.UserId == key));
+    public async Task<IActionResult> Get(int key)
+    {
+        try
+        {
+            var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == key);
+            if (user == null)
+                return NotFound();
+            return Ok(user);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error getting user {key}");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
 
     // CREATE (Thêm mới)
     public async Task<IActionResult> Post([FromBody] User user)
