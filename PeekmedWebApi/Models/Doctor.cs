@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace PeekmedWebApi.Models;
 
@@ -17,7 +18,8 @@ public partial class Doctor
 
     public string? Specialty { get; set; }
 
-    public DateOnly? DateOfBirth { get; set; }
+    // ✅ Thay DateOnly? thành DateTime? để tương thích với Azure
+    public DateTime? DateOfBirth { get; set; }
 
     public string? Address { get; set; }
 
@@ -35,7 +37,10 @@ public partial class Doctor
 
     public DateTime? UpdatedAt { get; set; }
 
+    // ✅ Thêm JsonIgnore để tránh circular reference và giảm payload size
+    [JsonIgnore]
     public virtual ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
 
+    [JsonIgnore]
     public virtual Department Department { get; set; } = null!;
 }

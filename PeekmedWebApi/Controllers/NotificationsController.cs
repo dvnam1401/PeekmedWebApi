@@ -12,14 +12,48 @@ namespace PeekmedWebApi.Controllers;
 public class NotificationsController : ODataController
 {
     private readonly PeekMedDbContext _db;
-    public NotificationsController(PeekMedDbContext db) => _db = db;
+    private readonly ILogger<NotificationsController> _logger;
 
-    // READ (Đã có)
+    public NotificationsController(PeekMedDbContext db, ILogger<NotificationsController> logger)
+    {
+        _db = db;
+        _logger = logger;
+    }
+
+    // ✅ Cải thiện GET với error handling và async
     [EnableQuery]
-    public IActionResult Get() => Ok(_db.Notifications);
+    public async Task<IActionResult> Get()
+    {
+        try
+        {
+            _logger.LogInformation("Getting all notifications...");
+            var notifications = await _db.Notifications.AsNoTracking().ToListAsync();
+            _logger.LogInformation($"Found {notifications.Count} notifications");
+            return Ok(notifications);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting notifications");
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+        }
+    }
 
     [EnableQuery]
-    public IActionResult Get(int key) => Ok(_db.Notifications.FirstOrDefault(n => n.NotificationId == key));
+    public async Task<IActionResult> Get(int key)
+    {
+        try
+        {
+            var notification = await _db.Notifications.AsNoTracking().FirstOrDefaultAsync(n => n.NotificationId == key);
+            if (notification == null)
+                return NotFound();
+            return Ok(notification);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error getting notification {key}");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
 
     // CREATE (Thêm mới)
     public async Task<IActionResult> Post([FromBody] Notification notification)

@@ -12,14 +12,48 @@ namespace PeekmedWebApi.Controllers;
 public class DoctorsController : ODataController
 {
     private readonly PeekMedDbContext _db;
-    public DoctorsController(PeekMedDbContext db) => _db = db;
+    private readonly ILogger<DoctorsController> _logger;
 
-    // READ (Đã có)
+    public DoctorsController(PeekMedDbContext db, ILogger<DoctorsController> logger)
+    {
+        _db = db;
+        _logger = logger;
+    }
+
+    // ✅ Cải thiện GET với error handling và async
     [EnableQuery]
-    public IActionResult Get() => Ok(_db.Doctors);
+    public async Task<IActionResult> Get()
+    {
+        try
+        {
+            _logger.LogInformation("Getting all doctors...");
+            var doctors = await _db.Doctors.AsNoTracking().ToListAsync();
+            _logger.LogInformation($"Found {doctors.Count} doctors");
+            return Ok(doctors);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting doctors");
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+        }
+    }
 
     [EnableQuery]
-    public IActionResult Get(int key) => Ok(_db.Doctors.FirstOrDefault(d => d.DoctorId == key));
+    public async Task<IActionResult> Get(int key)
+    {
+        try
+        {
+            var doctor = await _db.Doctors.AsNoTracking().FirstOrDefaultAsync(d => d.DoctorId == key);
+            if (doctor == null)
+                return NotFound();
+            return Ok(doctor);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error getting doctor {key}");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
 
     // CREATE (Thêm mới)
     public async Task<IActionResult> Post([FromBody] Doctor doctor)

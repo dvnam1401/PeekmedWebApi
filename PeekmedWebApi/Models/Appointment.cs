@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace PeekmedWebApi.Models;
 
@@ -25,13 +26,19 @@ public partial class Appointment
 
     public DateTime? UpdatedAt { get; set; }
 
+    // ✅ Thêm JsonIgnore để tránh circular reference và giảm payload size
+    [JsonIgnore]
     public virtual Department? Department { get; set; }
 
+    [JsonIgnore]
     public virtual Doctor? Doctor { get; set; }
 
+    [JsonIgnore]
     public virtual Hospital? Hospital { get; set; }
 
+    [JsonIgnore]
     public virtual Queue? Queue { get; set; }
 
+    [JsonIgnore]
     public virtual User? User { get; set; }
 }

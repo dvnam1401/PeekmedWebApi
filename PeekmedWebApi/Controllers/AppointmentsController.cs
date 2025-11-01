@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.OData.Query;
 using Microsoft.AspNetCore.OData.Routing.Controllers;
 using PeekmedWebApi.Data;
-// Thêm các using sau
 using PeekmedWebApi.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.OData.Deltas;
@@ -12,14 +11,48 @@ namespace PeekmedWebApi.Controllers;
 public class AppointmentsController : ODataController
 {
     private readonly PeekMedDbContext _db;
-    public AppointmentsController(PeekMedDbContext db) => _db = db;
+    private readonly ILogger<AppointmentsController> _logger;
 
-    // READ (Đã có)
+    public AppointmentsController(PeekMedDbContext db, ILogger<AppointmentsController> logger)
+    {
+        _db = db;
+        _logger = logger;
+    }
+
+    // ✅ Cải thiện GET với error handling và async
     [EnableQuery]
-    public IActionResult Get() => Ok(_db.Appointments);
+    public async Task<IActionResult> Get()
+    {
+        try
+        {
+            _logger.LogInformation("Getting all appointments...");
+            var appointments = await _db.Appointments.AsNoTracking().ToListAsync();
+            _logger.LogInformation($"Found {appointments.Count} appointments");
+            return Ok(appointments);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting appointments");
+            return StatusCode(500, new { error = "Internal server error", details = ex.Message });
+        }
+    }
 
     [EnableQuery]
-    public IActionResult Get(int key) => Ok(_db.Appointments.FirstOrDefault(a => a.AppointmentId == key));
+    public async Task<IActionResult> Get(int key)
+    {
+        try
+        {
+            var appointment = await _db.Appointments.AsNoTracking().FirstOrDefaultAsync(a => a.AppointmentId == key);
+            if (appointment == null)
+                return NotFound();
+            return Ok(appointment);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error getting appointment {key}");
+            return StatusCode(500, new { error = "Internal server error" });
+        }
+    }
 
     // CREATE (Thêm mới)
     public async Task<IActionResult> Post([FromBody] Appointment appointment)
